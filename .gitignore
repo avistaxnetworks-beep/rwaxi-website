@@ -1,0 +1,35 @@
+# Local/editor files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Temporary files and logs
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*.crdownload
+*.part
+
+# Dependency and build outputs
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+
+# Browser and test artifacts
+playwright-report/
+test-results/
+screenshots/
+traces/
