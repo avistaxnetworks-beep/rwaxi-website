@@ -2355,6 +2355,114 @@ input:focus-visible,select:focus-visible,textarea:focus-visible {
   }
 }
 
+/* Floating WhatsApp Business button (index.html and en/index.html).
+   Above the content and the header (z-index 20), hidden while the mobile
+   menu is open, and tucked away by script.js while it would sit on top of
+   the form's buttons. The label is absolutely positioned so its invisible
+   box never blocks clicks on the page. */
+.wa-float {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px));
+  z-index: 30;
+  display: block;
+  border-radius: 50%;
+  color: var(--white);
+  transition: opacity .25s ease, transform .25s ease, visibility .25s;
+}
+.wa-float-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border: 2px solid var(--white);
+  border-radius: 50%;
+  background: #25D366;
+  box-shadow: 0 8px 22px rgba(23,17,45,.28);
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.wa-float-icon svg {
+  width: 32px;
+  height: 32px;
+}
+.wa-float-icon::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid #25D366;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: wa-pulse 2.6s ease-out 1.5s 4;
+}
+@keyframes wa-pulse {
+  0% {
+    transform: scale(1);
+    opacity: .75;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.wa-float-label {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 12px);
+  padding: 9px 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--white);
+  box-shadow: 0 8px 22px rgba(23,17,45,.24);
+  font: 600 13px/1.2 var(--sans);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(8px,-50%);
+  pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+}
+.wa-float:hover .wa-float-icon,.wa-float:focus-visible .wa-float-icon {
+  background: #1ebe5b;
+  box-shadow: 0 12px 28px rgba(23,17,45,.34);
+  transform: scale(1.07);
+}
+.wa-float:focus-visible {
+  outline-offset: 5px;
+}
+@media(hover:hover) and (min-width:681px) {
+  .wa-float:hover .wa-float-label,.wa-float:focus-visible .wa-float-label {
+    opacity: 1;
+    transform: translate(0,-50%);
+  }
+}
+.wa-float.is-tucked,body.menu-open .wa-float {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(14px);
+  pointer-events: none;
+}
+@media(max-width:680px) {
+  .wa-float {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, calc(env(safe-area-inset-bottom) + 10px));
+  }
+  .wa-float-icon {
+    width: 56px;
+    height: 56px;
+  }
+  .wa-float-icon svg {
+    width: 30px;
+    height: 30px;
+  }
+}
+@media print {
+  .wa-float {
+    display: none;
+  }
+}
+
 /* 7. Reduced motion ----------------------------------------------------- */
 
 @media(prefers-reduced-motion:reduce) {
@@ -2365,6 +2473,15 @@ input:focus-visible,select:focus-visible,textarea:focus-visible {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+  .wa-float,.wa-float-icon,.wa-float-label {
+    transition: none;
+  }
+  .wa-float-icon::after {
+    animation: none;
+  }
+  .wa-float:hover .wa-float-icon,.wa-float:focus-visible .wa-float-icon,.wa-float.is-tucked,body.menu-open .wa-float {
+    transform: none;
   }
 }
 

@@ -156,3 +156,25 @@ const revealObserver = new IntersectionObserver((entries, observer) => {
 }, { threshold: 0.12 });
 
 revealItems.forEach((item) => revealObserver.observe(item));
+
+// FLOATING WHATSAPP BUTTON - the number lives in the href of .wa-float in index.html and en/index.html.
+// It steps aside only while the form's buttons pass underneath it, so it never covers them.
+const waFloat = document.querySelector('[data-wa-float]');
+const waGuarded = document.querySelectorAll('.form-submit, .fallback-actions');
+
+if (waFloat && waGuarded.length && 'IntersectionObserver' in window) {
+  const covered = new Set();
+  const overlapsFloat = (rect) => {
+    const float = waFloat.getBoundingClientRect();
+    return rect.right > float.left - 12 && rect.left < float.right + 12;
+  };
+  // The observer root is the bottom 22 % of the screen, where the floating button sits.
+  const waObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting && overlapsFloat(entry.boundingClientRect)) covered.add(entry.target);
+      else covered.delete(entry.target);
+    });
+    waFloat.classList.toggle('is-tucked', covered.size > 0);
+  }, { rootMargin: '-78% 0px 0px 0px' });
+  waGuarded.forEach((item) => waObserver.observe(item));
+}
