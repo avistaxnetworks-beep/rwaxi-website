@@ -1,0 +1,22 @@
+{
+  // Must be the exact name of the Worker in the Cloudflare dashboard (Workers & Pages),
+  // or the GitHub build will not deploy to www.rwaxi.com.
+  "name": "rwaxi-website",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    // The site lives at the repository root. Files listed in .assetsignore are not published.
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // Non-secret settings for the demo form. The Resend key is a secret:
+  // npx wrangler secret put RESEND_API_KEY (or Settings > Variables and Secrets in the dashboard).
+  "vars": {
+    "CONTACT_FROM": "RWAXI <contacto@notify.rwaxi.com>",
+    "CONTACT_TO": "tokenizacion@rwaxi.com"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

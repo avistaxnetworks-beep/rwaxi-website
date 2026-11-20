@@ -1,0 +1,16 @@
+# Files in the repository that must NOT be published as part of www.rwaxi.com.
+# Cloudflare reads this list when it uploads the static assets (assets.directory = ".").
+.git
+.gitignore
+.assetsignore
+.wrangler
+.dev.vars*
+.env*
+node_modules
+src
+wrangler.jsonc
+wrangler.json
+wrangler.toml
+package.json
+package-lock.json
+README.md

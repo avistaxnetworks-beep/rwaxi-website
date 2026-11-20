@@ -3,6 +3,10 @@ const menuToggle = document.querySelector('.menu-toggle');
 const nav = document.querySelector('#site-nav');
 const navLinks = document.querySelectorAll('#site-nav a');
 
+// CONTACT FORM ENDPOINT - the site's own Worker (src/worker.js) emails each request through Resend.
+const CONTACT_ENDPOINT = '/api/contact';
+const FORM_TIMEOUT_MS = 15000;
+
 // SOCIAL LINKS - REPLACE WITH PRODUCTION URLS
 const SOCIAL_LINKS = {
   linkedin: 'https://www.linkedin.com/company/rwaxi/',
@@ -52,16 +56,23 @@ document.querySelectorAll('.social-links a').forEach((link) => {
   }
 });
 
-// PROJECT FORM - no backend: it prepares an email in the visitor's own mail program.
-// Nothing is transmitted by the website, so no "received" confirmation is ever shown.
+// PROJECT FORM - sent in the background (fetch) to CONTACT_ENDPOINT; the visitor stays on the page.
 const form = document.querySelector('#project-form');
 
 if (form) {
-  const fallback = form.querySelector('#form-fallback');
-  const preview = form.querySelector('#f-preview');
-  const feedback = form.querySelector('.copy-feedback');
-
+  const formBody = form.querySelector('#form-body');
+  const success = form.querySelector('#form-success');
+  const errorAlert = form.querySelector('#form-error');
+  const submit = form.querySelector('.form-submit');
+  const submitLabel = submit.querySelector('[data-submit-label]');
+  const submitText = submitLabel.textContent;
   const whatsapp = form.querySelector('#f-whatsapp');
+
+  // The error message offers the same WhatsApp chat as the floating button (one number to maintain).
+  const waFloatLink = document.querySelector('[data-wa-float]');
+  form.querySelectorAll('[data-wa-link]').forEach((link) => {
+    if (waFloatLink) link.href = waFloatLink.href;
+  });
 
   // "Request a demo" links inside each business line preselect the matching demo focus.
   document.querySelectorAll('a[data-interest]').forEach((link) => {
@@ -80,69 +91,68 @@ if (form) {
   };
   whatsapp.addEventListener('input', checkWhatsapp);
 
-  const labelText = (field) => field.labels[0].textContent.replace(/\(.*?\)|\*/g, '').trim();
-
-  const buildMessage = () => {
-    const lines = [];
-    let message = '';
-    let messageLabel = '';
-    form.querySelectorAll('input, select, textarea').forEach((field) => {
-      if (field === preview || field === whatsapp) return;
-      if (field.type === 'checkbox') {
-        if (field.checked) lines.push(`${field.name}: ${field.value}`);
-        return;
-      }
-      const value = field.value.trim();
-      if (!value) return;
-      if (field.tagName === 'TEXTAREA') {
-        message = value;
-        messageLabel = labelText(field);
-        return;
-      }
-      lines.push(`${labelText(field)}: ${value}`);
-    });
-    const note = message ? `\n\n${messageLabel}:\n${message}` : '';
-    return `${form.dataset.whatsappLabel}: ${whatsapp.value.trim()}\n\n${lines.join('\n')}${note}\n\n-- \n${form.dataset.signature}`;
-  };
-
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    checkWhatsapp();
-    if (!form.reportValidity()) return;
-    const company = form.querySelector('#f-company').value.trim();
-    const subject = `${form.dataset.subject} — ${company} — WhatsApp: ${whatsapp.value.trim()}`;
-    const body = buildMessage();
-    preview.value = `${subject}\n\n${body}`;
-    fallback.hidden = false;
-    feedback.textContent = '';
-    window.location.href = `mailto:${form.dataset.to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.replace(/\n/g, '\r\n'))}`;
+  // The same keys src/worker.js validates. "website" is the hidden honeypot against spam bots.
+  const value = (selector) => form.querySelector(selector).value.trim();
+  const buildPayload = () => ({
+    name: value('#f-name'),
+    company: value('#f-company'),
+    role: value('#f-role'),
+    country: value('#f-country'),
+    whatsapp: value('#f-whatsapp'),
+    email: value('#f-email'),
+    focus: value('#f-focus'),
+    projectType: value('#f-asset'),
+    stage: value('#f-stage'),
+    message: value('#f-message'),
+    consent: form.querySelector('#f-consent').checked,
+    lang: document.documentElement.lang === 'en' ? 'en' : 'es',
+    website: value('#f-website')
   });
 
-  const copyText = async (text) => {
+  const setSending = (sending) => {
+    submit.disabled = sending;
+    submit.classList.toggle('is-sending', sending);
+    form.setAttribute('aria-busy', String(sending));
+    submitLabel.textContent = sending ? form.dataset.msgSending : submitText;
+  };
+
+  const send = async (formData) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FORM_TIMEOUT_MS);
     try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (error) {
-      const area = document.createElement('textarea');
-      area.value = text;
-      area.setAttribute('readonly', '');
-      area.style.position = 'fixed';
-      area.style.opacity = '0';
-      document.body.appendChild(area);
-      area.select();
-      const copied = document.execCommand('copy');
-      area.remove();
-      return copied;
+      const response = await fetch(CONTACT_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(formData),
+        signal: controller.signal
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.ok !== true) {
+        throw new Error(`Contact endpoint answered ${response.status} ${result.error || ''}`.trim());
+      }
+    } finally {
+      clearTimeout(timer);
     }
   };
 
-  form.querySelectorAll('[data-copy]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const text = button.dataset.copy === 'address' ? form.dataset.to : preview.value;
-      const copied = await copyText(text);
-      feedback.textContent = copied ? form.dataset.msgCopied : form.dataset.msgCopyFailed;
-      if (!copied && button.dataset.copy === 'message') preview.select();
-    });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (submit.disabled) return;
+    checkWhatsapp();
+    if (!form.reportValidity()) return;
+    errorAlert.hidden = true;
+    setSending(true);
+    try {
+      await send(buildPayload());
+      form.reset();
+      formBody.hidden = true;
+      success.hidden = false;
+      success.focus();
+    } catch (error) {
+      console.error('RWAXI form:', error);
+      setSending(false);
+      errorAlert.hidden = false;
+    }
   });
 }
 
@@ -160,7 +170,7 @@ revealItems.forEach((item) => revealObserver.observe(item));
 // FLOATING WHATSAPP BUTTON - the number lives in the href of .wa-float in index.html and en/index.html.
 // It steps aside only while the form's buttons pass underneath it, so it never covers them.
 const waFloat = document.querySelector('[data-wa-float]');
-const waGuarded = document.querySelectorAll('.form-submit, .fallback-actions');
+const waGuarded = document.querySelectorAll('.form-submit, .form-alert');
 
 if (waFloat && waGuarded.length && 'IntersectionObserver' in window) {
   const covered = new Set();
